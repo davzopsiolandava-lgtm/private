@@ -1,84 +1,108 @@
-<!-- controlled.html (tempel di private page) -->
-<script>
-  const bc = new BroadcastChannel('davz-control');
-
-  // data in-memory (atau bisa gunakan localStorage jika ingin persist)
-  let vipListText = document.getElementById('vipList')?.textContent || '';
-  // jika kamu punya struktur akun di halaman private:
-  let accounts = []; // { user, pass } — isi sesuai implementasimu
-
-  // helper: render vipList ke DOM
-  function renderVipList() {
-    const el = document.getElementById('vipList');
-    if (!el) return;
-    el.textContent = vipListText;
-  }
-
-  // helper: render accounts (sesuaikan)
-  function renderAccounts() {
-    const el = document.getElementById('accountList');
-    if (!el) return;
-    el.textContent = accounts.map(a => `- ${a.user}`).join('\\n');
-  }
-
-  // jalankan awal
-  renderVipList();
-  renderAccounts();
-
-  // handler pesan dari controller
-  bc.onmessage = (ev) => {
-    const msg = ev.data;
-    console.log('Controlled menerima:', msg);
-    const { action, payload } = msg;
-
-    if (action === 'addID') {
-      const { id, owner, note } = payload;
-      // contoh format yang sama seperti daftarmu
-      vipListText += `\\n\\n---\\n\\n${id}\\n-${owner}\\n${note}`;
-      renderVipList();
-
-      // optional: kirim konfirmasi kembali ke controller
-      bc.postMessage({ action:'ack', status:'ok', for:'addID', id });
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LIST ID VIP DAVZ - Control Panel</title>
+  <style>
+    :root { --bg:#0f172a; --card:#fff; --accent:#2563eb; --muted:#6b7280; }
+    body {
+      margin:0;
+      font-family: Inter, system-ui, "Segoe UI", Roboto, Arial;
+      background:url("https://files.catbox.moe/7iibjs") center/cover fixed;
+      min-height:100vh;
+      display:flex; align-items:center; justify-content:center;
+      animation:bgmove 25s ease-in-out infinite alternate;
+      color:#111;
     }
-
-    else if (action === 'deleteID') {
-      const { id } = payload;
-      // cari baris yang cocok dan hapus bloknya
-      const lines = vipListText.split('\\n');
-      const idx = lines.findIndex(l => l.trim() === id);
-      if (idx !== -1) {
-        lines.splice(Math.max(0, idx-1), 5); // hapus blok
-        vipListText = lines.join('\\n');
-        renderVipList();
-        bc.postMessage({ action:'ack', status:'ok', for:'deleteID', id });
-      } else {
-        bc.postMessage({ action:'ack', status:'not-found', for:'deleteID', id });
-      }
+    @keyframes bgmove {
+      from { background-position:center top; filter:brightness(0.9); }
+      to { background-position:center bottom; filter:brightness(1); }
     }
-
-    else if (action === 'updatePassword') {
-      const { username, password } = payload;
-      const found = accounts.find(a => a.user === username);
-      if (found) {
-        found.pass = password;
-      } else {
-        accounts.push({ user: username, pass: password });
-      }
-      renderAccounts();
-      bc.postMessage({ action:'ack', status:'ok', for:'updatePassword', username });
+    .wrap { width:400px; position:relative; }
+    .card {
+      background:rgba(255,255,255,0.9);
+      border-radius:12px;
+      padding:22px;
+      box-shadow:0 8px 30px rgba(15,23,42,0.25);
+      backdrop-filter:blur(6px);
     }
+    h1,h2,h3 { margin:0 0 12px; }
+    input {
+      width:100%; padding:10px; margin-top:6px;
+      border:1px solid #d1d5db; border-radius:8px;
+    }
+    button {
+      width:100%; margin-top:12px; padding:10px;
+      border:none; border-radius:8px; cursor:pointer;
+      font-weight:600; color:#fff; background:var(--accent);
+    }
+    button.danger { background:#dc2626; }
+    pre {
+      background:#0b1220; color:#e6edf3;
+      padding:12px; border-radius:8px;
+      font-family:monospace; font-size:13px;
+    }
+    .msg { margin-top:10px; padding:10px; border-radius:8px; font-size:13px; display:none; }
+    .success { background:#ecfdf5; color:#065f46; display:block; }
+    .error { background:#fff1f2; color:#7f1d1d; display:block; }
+    #navigator button { width:100%; margin:6px 0; background:#1e293b; }
+    .small { text-align:center; font-size:12px; color:#64748b; margin-top:8px; }
+  </style>
+</head>
+<body>
+  <audio id="phonkMusic" autoplay loop>
+    <source src="https://files.catbox.moe/8wbv1k.mp3" type="audio/mpeg" />
+  </audio>
 
-    // tambahkan aksi lain sesuai kebutuhan
-  };
+  <div class="wrap">
+    <!-- LOGIN -->
+    <div class="card" id="loginCard">
+      <h1>Login Admin</h1>
+      <label>Username</label>
+      <input id="username" placeholder="masukkan username" />
+      <label>Password</label>
+      <input id="password" type="password" placeholder="masukkan password" />
+      <button id="loginBtn">Masuk</button>
+      <div id="loginMsg" class="msg"></div>
+    </div>
 
-  // optional: bersihkan channel saat unload
-  window.addEventListener('beforeunload', () => {
-    bc.close();
-  });
-</script>
+    <!-- CONTROL PANEL -->
+    <div class="card" id="panelCard" style="display:none;">
+      <h1>Control Panel</h1>
+      <div class="msg success">Selamat datang, <span id="adminName"></span>!</div>
 
-<!-- Contoh elemen DOM di halaman private -->
-<pre id="vipList">-187480083
+      <h3 style="margin-top:10px;">List Akun</h3>
+      <pre id="accountList"></pre>
+      <input id="newUser" placeholder="username baru" />
+      <input id="newPass" type="password" placeholder="password baru" />
+      <button id="addAccountBtn">Tambah Akun</button>
+      <input id="delUser" placeholder="username target" />
+      <button id="delAccountBtn" class="danger">Hapus Akun</button>
+
+      <h3 style="margin-top:18px;">List ID VIP</h3>
+      <pre id="vipList"></pre>
+      <input id="newID" placeholder="-123456789" />
+      <input id="newOwner" placeholder="nama pengguna" />
+      <input id="newNote" placeholder="[KETERANGAN]" />
+      <button id="addIDBtn">Tambah ID VIP</button>
+      <input id="delID" placeholder="ID yang ingin dihapus" />
+      <button id="delIDBtn" class="danger">Hapus ID</button>
+
+      <h3 style="margin-top:20px;">🌐 Navigator Eksternal</h3>
+      <div id="navigator"></div>
+      <input id="newSiteName" placeholder="Nama situs (contoh: Dashboard)" />
+      <input id="newSiteURL" placeholder="URL situs (https://...)" />
+      <button id="addSiteBtn">Tambah Link</button>
+
+      <button id="logoutBtn" class="danger" style="margin-top:18px;">Logout</button>
+      <div class="small">Data tersimpan di localStorage</div>
+    </div>
+  </div>
+
+  <script>
+    const accounts = JSON.parse(localStorage.getItem("accounts")) || [{ user:"davznewera", pass:"davz1231" }];
+    let vipListData = localStorage.getItem("vipList") || `-187480083
 -davz1231
 [TECNO LI7]
 
@@ -86,6 +110,151 @@
 
 -184647956
 -davz1231
-[AIRLANGGA]</pre>
+[AIRLANGGA]`;
+    let externalSites = JSON.parse(localStorage.getItem("externalSites")) || [
+      { name:"YouTube", url:"https://youtube.com" },
+      { name:"GitHub", url:"https://github.com" }
+    ];
 
-<pre id="accountList"></pre>
+    const loginCard = document.getElementById("loginCard");
+    const panelCard = document.getElementById("panelCard");
+    const loginMsg = document.getElementById("loginMsg");
+    const username = document.getElementById("username");
+    const password = document.getElementById("password");
+    const accountList = document.getElementById("accountList");
+    const vipList = document.getElementById("vipList");
+    const navigatorBox = document.getElementById("navigator");
+
+    function refreshLists() {
+      accountList.textContent = accounts.map(a=>`- ${a.user}`).join("\n");
+      vipList.textContent = vipListData;
+      renderNavigator();
+    }
+
+    function renderNavigator() {
+      navigatorBox.innerHTML = "";
+      externalSites.forEach(s => {
+        const btn = document.createElement("button");
+        btn.textContent = s.name + " 🌐";
+        btn.onclick = ()=>window.open(s.url,"_blank");
+        navigatorBox.appendChild(btn);
+      });
+    }
+
+    function saveAll() {
+      localStorage.setItem("accounts", JSON.stringify(accounts));
+      localStorage.setItem("vipList", vipListData);
+      localStorage.setItem("externalSites", JSON.stringify(externalSites));
+    }
+
+    // LOGIN
+    document.getElementById("loginBtn").onclick = () => {
+      const u = username.value.trim();
+      const p = password.value.trim();
+      const found = accounts.find(a => a.user===u && a.pass===p);
+      if(found) {
+        loginMsg.className="msg success";
+        loginMsg.textContent="Login berhasil!";
+        setTimeout(()=>{
+          loginCard.style.display="none";
+          panelCard.style.display="block";
+          document.getElementById("adminName").textContent=u;
+          refreshLists();
+          localStorage.setItem("loggedIn",u);
+        },700);
+      } else {
+        loginMsg.className="msg error";
+        loginMsg.textContent="Username atau password salah.";
+      }
+    };
+
+    document.getElementById("logoutBtn").onclick = () => {
+      panelCard.style.display="none";
+      loginCard.style.display="block";
+      localStorage.removeItem("loggedIn");
+    };
+
+    document.getElementById("addAccountBtn").onclick = ()=>{
+      const nu=document.getElementById("newUser").value.trim();
+      const np=document.getElementById("newPass").value.trim();
+      if(!nu||!np) return alert("Isi data dulu");
+      if(accounts.some(a=>a.user===nu)) return alert("Username sudah ada");
+      accounts.push({user:nu,pass:np});
+      saveAll(); refreshLists();
+      document.getElementById("newUser").value=document.getElementById("newPass").value="";
+    };
+
+    document.getElementById("delAccountBtn").onclick = ()=>{
+      const du=document.getElementById("delUser").value.trim();
+      const idx=accounts.findIndex(a=>a.user===du);
+      if(idx>-1){accounts.splice(idx,1);saveAll();refreshLists();}
+    };
+
+    document.getElementById("addIDBtn").onclick=()=>{
+      const id=document.getElementById("newID").value.trim();
+      const o=document.getElementById("newOwner").value.trim();
+      const n=document.getElementById("newNote").value.trim();
+      if(!id||!o||!n)return alert("Lengkapi data ID VIP");
+      vipListData += `\n\n---\n\n${id}\n-${o}\n${n}`;
+      saveAll(); refreshLists();
+      document.getElementById("newID").value=document.getElementById("newOwner").value=document.getElementById("newNote").value="";
+    };
+
+    document.getElementById("delIDBtn").onclick=()=>{
+      const del=document.getElementById("delID").value.trim();
+      if(!del)return;
+      const lines=vipListData.split("\n");
+      const idx=lines.findIndex(l=>l.trim()===del);
+      if(idx>-1){lines.splice(Math.max(0,idx-1),5);vipListData=lines.join("\n");saveAll();refreshLists();}
+    };
+
+    document.getElementById("addSiteBtn").onclick=()=>{
+      const name=document.getElementById("newSiteName").value.trim();
+      const url=document.getElementById("newSiteURL").value.trim();
+      if(!name||!url)return alert("Isi nama dan URL");
+      externalSites.push({name,url});
+      saveAll();refreshLists();
+      document.getElementById("newSiteName").value=document.getElementById("newSiteURL").value="";
+    };
+
+    window.addEventListener("load",()=>{
+      refreshLists();
+      const u=localStorage.getItem("loggedIn");
+      if(u){loginCard.style.display="none";panelCard.style.display="block";document.getElementById("adminName").textContent=u;}
+      const audio=document.getElementById("phonkMusic");
+      audio.volume=0.5;
+      audio.play().catch(()=>{});
+    });
+
+    // === TERIMA PERINTAH DARI CONTROLLER ===
+    const bc = new BroadcastChannel('davz_control_channel');
+    bc.onmessage = (e) => {
+      const { action, payload, from } = e.data;
+      console.log("Pesan diterima dari controller:", e.data);
+
+      if (action === "addID") {
+        const { id, owner, note } = payload;
+        if (!id || !owner || !note) return;
+        vipListData += `\n\n---\n\n${id}\n-${owner}\n${note}`;
+        saveAll(); refreshLists();
+        bc.postMessage({ status:"OK", action, result:"ID ditambahkan", id });
+      }
+
+      else if (action === "deleteID") {
+        const { id } = payload;
+        if (!id) return;
+        const lines = vipListData.split("\n");
+        const idx = lines.findIndex(l => l.trim() === id);
+        if (idx > -1) {
+          lines.splice(Math.max(0, idx - 1), 5);
+          vipListData = lines.join("\n");
+          saveAll(); refreshLists();
+          bc.postMessage({ status:"OK", action, result:"ID dihapus", id });
+        } else {
+          bc.postMessage({ status:"NOT_FOUND", action, id });
+        }
+      }
+    };
+  </script>
+</body>
+</html>
