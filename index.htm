@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cek Login - LIST ID VIP DAVZ</title>
+  <style>
+    :root { --bg:#f6f7fb; --card:#fff; --accent:#2563eb; --muted:#6b7280; }
+    body { margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:var(--bg); display:flex; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
+    .wrap { width:360px; }
+    .card { background:var(--card); border-radius:12px; padding:20px; box-shadow:0 8px 30px rgba(15,23,42,0.08); }
+    h1 { font-size:18px; margin:0 0 8px 0; }
+    label { display:block; margin-top:12px; font-size:13px; color:var(--muted); }
+    input { width:100%; padding:10px 12px; margin-top:6px; border:1px solid #e6e9ef; border-radius:8px; box-sizing:border-box; font-size:14px; }
+    button { width:100%; margin-top:16px; padding:10px; border:0; border-radius:10px; cursor:pointer; font-weight:600; background:var(--accent); color:#fff; }
+    .msg { margin-top:12px; padding:10px; border-radius:8px; font-size:13px; display:none; }
+    .error { background:#fff1f2; color:#7f1d1d; display:block; }
+    .success { background:#ecfdf5; color:#065f46; display:block; }
+
+    /* area hasil */
+    .result { margin-top:14px; display:none; }
+    .title-vip { font-weight:700; letter-spacing:0.4px; margin-bottom:8px; }
+    pre.list { white-space:pre-wrap; background:#0b1220; color:#e6edf3; padding:14px; border-radius:10px; font-family: "Courier New", monospace; font-size:13px; line-height:1.5; }
+    .small { font-size:12px; color:var(--muted); margin-top:8px; text-align:center; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" role="main" aria-labelledby="title">
+      <h1 id="title">Cek Login</h1>
+
+      <label for="username">Username</label>
+      <input id="username" autocomplete="username" placeholder="masukkan username" />
+
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="masukkan password" />
+
+      <button id="submitBtn">Masuk</button>
+
+      <div id="message" class="msg" role="status" aria-live="polite"></div>
+
+      <div id="result" class="result" aria-live="polite">
+        <div class="title-vip">LIST ID VIP DAVZ</div>
+        <pre class="list" id="vipList">-187480083 
+-davz1231
+[TECNO LI7]
+________________________
+-184647956
+-davz1231
+[AIRLANGGA]</pre>
+        <div class="small">Data tampil setelah login berhasil.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Kredensial (client-side seperti yang diminta)
+    const CORRECT_USERNAME = "davznewera";
+    const CORRECT_PASSWORD = "davz1231";
+
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const submitBtn = document.getElementById('submitBtn');
+    const message = document.getElementById('message');
+    const result = document.getElementById('result');
+
+    function showMessage(text, type) {
+      message.textContent = text;
+      message.className = 'msg ' + (type === 'success' ? 'success' : 'error');
+      message.style.display = 'block';
+    }
+
+    function hideMessage() {
+      message.style.display = 'none';
+    }
+
+    function showResult() {
+      result.style.display = 'block';
+    }
+
+    function hideResult() {
+      result.style.display = 'none';
+    }
+
+    submitBtn.addEventListener('click', function () {
+      const u = usernameInput.value.trim();
+      const p = passwordInput.value;
+
+      hideMessage();
+
+      if (!u || !p) {
+        showMessage('Isi username dan password terlebih dahulu.', 'error');
+        hideResult();
+        return;
+      }
+
+      if (u === CORRECT_USERNAME && p === CORRECT_PASSWORD) {
+        showMessage('Login berhasil — selamat datang, ' + u + '!', 'success');
+        showResult();
+      } else {
+        showMessage('Username atau password salah.', 'error');
+        hideResult();
+      }
+    });
+
+    // Enter untuk submit
+    [usernameInput, passwordInput].forEach(el => {
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitBtn.click();
+      });
+    });
+  </script>
+</body>
+</html>
