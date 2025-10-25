@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <title>Controlled - Web 2</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#000; color:#0f0; padding:40px; }
+    pre { background:#111; padding:10px; border-radius:6px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Controlled Page</h1>
+  <p>Menunggu pesan dari Controller...</p>
+  <pre id="vipList">Daftar ID:\n\n-187480083\n-davz1231\n[TECNO LI7]</pre>
+
+  <script>
+    const bc = new BroadcastChannel('davz_control_channel');
+    const vipList = document.getElementById('vipList');
+    function log(txt){ console.log(txt); }
+
+    bc.onmessage = (e) => {
+      const { action, payload } = e.data;
+      log(`Menerima: ${action}`);
+      if(action === 'addID'){
+        const { id, owner, note } = payload;
+        vipList.textContent += `\n\n---\n\n${id}\n-${owner}\n${note}`;
+      }
+      if(action === 'deleteID'){
+        const { id } = payload;
+        const lines = vipList.textContent.split("\n");
+        const idx = lines.findIndex(l => l.trim() === id);
+        if(idx !== -1){
+          lines.splice(Math.max(0, idx-1), 5);
+          vipList.textContent = lines.join("\n");
+        }
+      }
+      bc.postMessage({ ack: true, message: `Processed ${action}` });
+    };
+  </script>
+</body>
+</html>
